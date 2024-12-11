@@ -454,6 +454,7 @@ Mianzi ***huleMianziYiban(Shoupai *shoupai, Pai *hulepai){
                     if(compMianzi[k][l]->paizhong == hulepai->paizhong){
                         if(compMianzi[k][l]->paixing == Shunzi && (hulepai->value != compMianzi[k][l]->value && hulepai->value != compMianzi[k][l]->value + 1 && hulepai->value != compMianzi[k][l]->value + 2)) continue;
                         if(compMianzi[k][l]->paixing != Shunzi && hulepai->value != compMianzi[k][l]->value) continue;
+                        if(compMianzi[k][l]->source == Zimo && hulepai->paiSource != Zimo || compMianzi[k][l]->source != Zimo && hulepai->paiSource == Zimo) continue;
 
                         // 和了牌が見つかったらcompMianziからコピーをしてhuleMianziに追加
                         bool flag = false;

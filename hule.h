@@ -13,14 +13,6 @@
 /** @brief 役の数の最大数 */
 #define MAX_HUPAI (10)
 
-/** @brief Yiを作成する多重定義 */
-#define SELECTER(ONE_, TWO_, THREE_, SELECT, ...) SELECT
-#define CREATE_NEW_YI(yi, yiCount, ...) \
-    do { \
-        yi[*yiCount] = SELECTER(__VA_ARGS__, createNewYiWithBaojia, createNewYi) (__VA_ARGS__); \
-        (*yiCount)++; \
-    } while(0)
-
 //------------------------------------------------
 //  型定義(Type definition)
 //------------------------------------------------
@@ -64,6 +56,20 @@ typedef struct{
 } Hupai;
 
 /**
+ * @struct JuInfo
+ * @brief 局の情報
+ */
+typedef struct{
+    Fengpai zhuangfeng;     /*!< 場風 */
+    Fengpai menfeng;        /*!< 和了者の自風 */
+    Hupai *hupai;           /*!< 特殊役情報 */
+    uint8_t baopai[5];      /*!< ドラ (牌の種類 : val/10, 牌の番号 : val%10) */
+    uint8_t fubaopai[5];    /*!< 裏ドラ (牌の種類 : val/10, 牌の番号 : val%10) */
+    uint8_t changbang;      /*!< 積み棒の数 */
+    uint8_t lizhibang;      /*!< 供託立直棒の数 */
+} JuInfo;
+
+/**
  * @struct Hudi
  * @brief 符の情報を表す構造体
  */
@@ -85,6 +91,18 @@ typedef struct{
     Fengpai menfeng;        /*!< 自風 */
 } Hudi;
 
+/**
+ * @struct Hule
+ * @brief 面子や役、符などの計算結果をまとめた構造体(出力)
+ */
+typedef struct{
+    Yi **hupai;         /*!< 役一覧 */
+    uint8_t fu;         /*!< 符 */
+    uint8_t fanshu;     /*!< 翻数 */
+    uint8_t damanguan;  /*!< 役満複合数 */
+    uint8_t defen;      /*!< (供託を含めない)和了点 */
+    int8_t fenpei[4];   /*!< (供託を含めた)点数の移動 */
+} Hule;
 
 //------------------------------------------------
 //  プロトタイプ宣言(Prototype declaration)

@@ -1,16 +1,38 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <string.h>
 #include <math.h>
+#include <stdio.h>
 #include "common.h"
 #include "mianzi.h"
 #include "hule.h"
+
+/** @brief 赤ドラ(0)を5に変換する関数
+ * @param shoupai (Shoupai *) 打牌可能な牌
+ * @return (Shoupai *) 0->5にした結果
+ */
+Shoupai *get0to5Shoupai(const Shoupai *shoupai){
+    Shoupai *newShoupai = allocateMemory(1, sizeof(Shoupai), false);
+    uint8_t bingpai[4][10];
+    memcpy(bingpai, shoupai->bingpai, sizeof(uint8_t) * 4 * 10);
+    newShoupai->fulou = shoupai->fulou;
+    newShoupai->fulouHongpai = shoupai->fulouHongpai;
+    newShoupai->drawnPai = shoupai->drawnPai;
+
+    for(int i = 0; i < 3; i++){
+        bingpai[i][5] += bingpai[i][0];
+        bingpai[i][0] = 0;
+    }
+
+    return newShoupai;
+}
 
 /** @brief 幺九牌を含むかどうかを確認する関数
  * @param mianzi (Mianzi) 確認する面子
  * @return (bool) Yes / No
  */
-bool isYaojiu(Mianzi *mianzi){
+bool isYaojiu(const Mianzi *mianzi){
     // 字牌のとき
     if(mianzi->paizhong == Zihpai) return false;
 
@@ -34,16 +56,13 @@ bool isYaojiu(Mianzi *mianzi){
     }
 }
 
-/** @brief 役のリストをコピーする関数
- * @param yi (Yi *) コピー元の役
- * @return (Yi *) 役の情報が入った型
+/** @brief 役の情報が同じかを確認する関数
+ * @param data1 (Mianzi*) 比較対象の面子1
+ * @param data2 (Mianzi*) 比較対象の面子2
+ * @return (bool) 同じ面子ならtrue、異なればfalse
  */
-bool isSameMianzi(Mianzi *data1, Mianzi *data2){
-    if(data1->paixing != data2->paixing) return false;
-    if(data1->paizhong != data2->paizhong) return false;
-    if(data1->value != data2->value) return false;
-
-    return true;
+bool isSameMianzi(const Mianzi* data1, const Mianzi* data2) {
+    return (data1->paixing == data2->paixing) && (data1->paizhong == data2->paizhong) && (data1->value == data2->value);
 }
 
 /** @brief 役を新たに作成する関数
@@ -52,7 +71,7 @@ bool isSameMianzi(Mianzi *data1, Mianzi *data2){
  * @param baojia (SiJia) パオがある場合、四家のうちどこか(0...パオなし)
  * @return (Yi *) 役の情報が入った型
  */
-Yi *createYi(const char *name, int fanshu, Sijia baojia){
+Yi *createYi(const char *name, const uint8_t fanshu, const Sijia baojia){
     Yi *yi = allocateMemory(1, sizeof(Yi), false);
 
     yi->name = strdup(name);
@@ -66,7 +85,7 @@ Yi *createYi(const char *name, int fanshu, Sijia baojia){
  * @param yi (Yi *) コピー元の役
  * @return (Yi *) 役の情報が入った型
  */
-Yi **copyYiArray(Yi **data){
+Yi **copyYiArray(const Yi **data){
     size_t count = 0;
     while(data[count] != NULL) count++;
 
@@ -78,19 +97,182 @@ Yi **copyYiArray(Yi **data){
     return newData;
 }
 
+/** @brief 役のリストを結合する関数
+ * @param 
+ * @param
+ */
+void concatYiArray(Yi **data1, const Yi **data2){
+    size_t data1Count = 0, data2Count = 0;
+    while(data1[data1Count] != NULL) data1Count++;
+    while(data2[data2Count] != NULL) data2Count++;
+
+    for(int i = 0; i < data2Count; i++){
+        data1[data1Count + i] = data2[i];
+    }
+}
+
+/** @brief 状況役の一覧作成
+ * @param hupai (Hupai *) 特殊役の情報
+ * @return (Yi **) 役の一覧
+ */
+Yi **getPreHupai(const Hupai *hupai){
+    Yi** preHupai = allocateMemory(MAX_HUPAI, sizeof(Yi *), true);
+    uint8_t count = 0;  // 役の数
+
+    // マクロ
+    #define CREATE_YI(name, fanshu) \
+        do { \
+            preHupai[count] = createYi(name, fanshu, 0); \
+            (count)++; \
+        } while(0)
+    
+    // 天和
+    if(hupai->tianhu == 1){
+        CREATE_YI("天和", -1);
+        return preHupai;
+    }
+
+    // 地和
+    if(hupai->tianhu == 2){
+        CREATE_YI("地和", -1);
+        return preHupai;
+    }
+
+    // 立直
+    if(hupai->lizhi == 1) CREATE_YI("立直", 1);
+
+    // ダブル立直
+    if(hupai->lizhi == 2) CREATE_YI("ダブル立直", 2);
+
+    // 一発
+    if(hupai->yifa) CREATE_YI("一発", 1);
+
+    // 海底摸月
+    if(hupai->haidi == 1) CREATE_YI("海底摸月", 1);
+
+    // 河底撈魚
+    if(hupai->haidi == 2) CREATE_YI("河底撈魚", 1);
+
+    // 嶺上開花
+    if(hupai->lingshang) CREATE_YI("嶺上開花", 1);
+
+    // 槍槓
+    if(hupai->qianggang) CREATE_YI("槍槓", 1);
+
+    #undef CREATE_YI
+    return preHupai;
+}
+
+/** @brief 懸賞役の一覧作成
+ * @param hupai (Hupai *) 特殊役の情報
+ * @return (Yi **) 役の一覧
+ */
+Yi **getPostHupai(const Shoupai *shoupai, const uint8_t *baopai, const uint8_t *fubaopai){
+    Yi **postHupai = allocateMemory(MAX_HUPAI, sizeof(Yi *), true);
+    uint8_t count = 0;  // 役の数
+
+    Shoupai *newShoupai = get0to5Shoupai(shoupai);
+
+    //--- ドラの計算 ---//
+    uint8_t nBaopai = 0;    // ドラの翻数
+    for(int i = 0; baopai[i] % 10 != 0; i++){
+        // 打牌可能な手牌(自摸含む)
+        nBaopai += newShoupai->bingpai[baopai[i] / 10][baopai[i] % 10];
+
+        // 副露
+        for(int j = 0; newShoupai->fulou[j] != NULL; j++){
+            uint8_t fulouVal = newShoupai->fulou[j]->paizhong * 10 + newShoupai->fulou[j]->value;
+
+            if(newShoupai->fulou[j]->paixing == Shunzi){
+                if(baopai[i] == fulouVal || baopai[i] == fulouVal + 1 || baopai[i] == fulouVal + 2) nBaopai++;
+            }else{
+                if(baopai[i] == fulouVal){
+                    switch(newShoupai->fulou[j]->paixing){
+                        case Kezi:
+                            nBaopai += 3;
+                            break;
+
+                        case Gangzi:
+                            nBaopai += 4;
+                            break;
+                    }
+                }
+            }
+        }
+    }
+    if(nBaopai > 0){
+        postHupai[count] = createYi("ドラ", nBaopai, 0);
+        count++;
+    }
+    //--- ドラの計算 ---//
+    
+    //--- 赤ドラの計算 ---//
+    uint8_t nHongpai = 0;    // ドラの翻数
+    
+    // 打牌可能な手牌(自摸含む)
+    nHongpai += shoupai->bingpai[Wanzi][0] + shoupai->bingpai[Tongzi][0] + shoupai->bingpai[Suozi][0];
+
+    // 副露
+    for(int j = 0; shoupai->fulou[j] != NULL; j++){
+        if(shoupai->fulouHongpai) nHongpai++;
+    }
+
+    if(nHongpai > 0){
+        postHupai[count] = createYi("赤ドラ", nHongpai, 0);
+        count++;
+    }
+    //--- 赤ドラの計算 ---//
+
+    //--- 裏ドラの計算 ---//
+    uint8_t nFubaopai = 0;    // ドラの翻数
+
+    for(int i = 0; fubaopai[i] % 10 != 0; i++){
+        // 打牌可能な手牌(自摸含む)
+        nFubaopai += newShoupai->bingpai[fubaopai[i] / 10][fubaopai[i] % 10];
+
+        // 副露
+        for(int j = 0; newShoupai->fulou[j] != NULL; j++){
+            uint8_t fulouVal = newShoupai->fulou[j]->paizhong * 10 + newShoupai->fulou[j]->value;
+
+            if(newShoupai->fulou[j]->paixing == Shunzi){
+                if(fubaopai[i] == fulouVal || fubaopai[i] == fulouVal + 1 || fubaopai[i] == fulouVal + 2) nFubaopai++;
+            }else{
+                if(fubaopai[i] == fulouVal){
+                    switch(newShoupai->fulou[j]->paixing){
+                        case Kezi:
+                            nFubaopai += 3;
+                            break;
+
+                        case Gangzi:
+                            nFubaopai += 4;
+                            break;
+                    }
+                }
+            }
+        }
+    }
+    if(nFubaopai > 0){
+        postHupai[count] = createYi("裏ドラ", nFubaopai, 0);
+        count++;
+    }
+    //--- 裏ドラの計算 ---//
+
+    return postHupai;
+}
+
 /** @brief 符を求めるプログラム
  * @param shoupai (Shoupai *) 手牌
  * @param hulepai (PaiAction *) 和了牌
  * @return (Mianzi **) 面子の情報の配列(七対子ではなかったときNULL)
  */
-Hudi *getHudi(Mianzi **mianzi, Fengpai zhuangfeng, Fengpai menfeng){
+Hudi *getHudi(const Mianzi **mianzi, const Fengpai zhuangfeng, const Fengpai menfeng){
     // 初期設定
     Hudi *hudi = allocateMemory(1, sizeof(Hudi), false);
     hudi->fu = 20;
     hudi->menqian = true;
     hudi->zimo = true;
-
-    hudi->kezi;
+    hudi->shunzi = allocateMemory(MAX_MIANZI_COMBINATIONS, sizeof(Mianzi *), true);
+    memset(hudi->kezi, 0, sizeof(hudi->kezi));
     hudi->nShunzi = 0;
     hudi->nKezi   = 0;
     hudi->nAnkezi = 0;
@@ -133,6 +315,7 @@ Hudi *getHudi(Mianzi **mianzi, Fengpai zhuangfeng, Fengpai menfeng){
         case Kezi:
         case Gangzi:
             hudi->nKezi++;
+            hudi->kezi[p->paizhong][p->value]++;
             int fu = 2;     //刻子の符を 2 で初期化
             if(isYaojiu(p)) fu *= 2;                                    // 幺九牌のとき
             if(!p->isFulou){ fu *= 2; hudi->nAnkezi++; }                // 暗刻子のとき(槓子含む)
@@ -143,6 +326,7 @@ Hudi *getHudi(Mianzi **mianzi, Fengpai zhuangfeng, Fengpai menfeng){
 
         // 順子
         case Shunzi:
+            hudi->shunzi[hudi->nShunzi] = p;
             hudi->nShunzi++;
             // 和了牌を含む面子の時
             if(p->isHulu){
@@ -177,7 +361,7 @@ Hudi *getHudi(Mianzi **mianzi, Fengpai zhuangfeng, Fengpai menfeng){
  * @param hulepai (PaiAction *) 和了牌
  * @return (Mianzi **) 面子の情報の配列(七対子ではなかったときNULL)
  */
-Yi **getHupai(TeshuDamanguan flag, Mianzi **mianzi, Hudi *hudi, Yi **preHupai){
+Yi **getHupai(const TeshuDamanguan flag, const Mianzi **mianzi, const Hudi *hudi, const Yi **preHupai){
     // 役満の初期値を設定する。状況役に役満(天和、地和)が含まれている場合はそれを設定、ない場合は初期化。
     Yi **damanguan = (preHupai[0] != NULL && preHupai[0]->fanshu < 0) ? copyYiArray(preHupai) : allocateMemory(MAX_HUPAI, sizeof(Yi *), true);
     size_t damanguanCount = (preHupai[0] != NULL && preHupai[0]->fanshu < 0) ? 1 : 0;
@@ -332,7 +516,7 @@ Yi **getHupai(TeshuDamanguan flag, Mianzi **mianzi, Hudi *hudi, Yi **preHupai){
 
     // 翻牌
     char *str;
-    char **fengHanzi = {"東", "南", "西", "北"};
+    char *fengHanzi[] = {"東", "南", "西", "北"};
     if(hudi->kezi[Zihpai][hudi->zhuangfeng + 1] > 0){
         sprintf(str, "場風 : %s", fengHanzi[hudi->zhuangfeng]);
         CREATE_YI(str, 1);
@@ -352,7 +536,7 @@ Yi **getHupai(TeshuDamanguan flag, Mianzi **mianzi, Hudi *hudi, Yi **preHupai){
     if(hudi->nYaojiu == 0) CREATE_YI("断幺九", 1);
 
     // 一盃口、二盃口
-    if(hudi->menqian){
+    if(hudi->menqian && hudi->nShunzi > 1){
         uint8_t beikou = 0;
         bool *check = allocateMemory(hudi->nShunzi - 1, sizeof(bool), true);
 
@@ -458,4 +642,226 @@ Yi **getHupai(TeshuDamanguan flag, Mianzi **mianzi, Hudi *hudi, Yi **preHupai){
         CREATE_YI("純全帯幺九", hudi->menqian ? 3 : 2);
 
     return hupai;
+}
+
+Hule *hule(const Shoupai *shoupai, const JuInfo *juInfo){
+    Hule *max = allocateMemory(1, sizeof(Hule), true);
+
+    Yi **preHupai = getPreHupai(juInfo->hupai);
+    Yi **postHupai = getPostHupai(shoupai, juInfo->baopai, juInfo->fubaopai);
+    TeshuDamanguan damanguanFlag;
+    Mianzi ***mianzi = huleMianzi(&damanguanFlag, get0to5Shoupai(shoupai), &shoupai->drawnPai);
+
+    size_t count = 0;
+    while(mianzi[count] != NULL){
+        Hudi *hudi = getHudi(mianzi[count], juInfo->zhuangfeng, juInfo->menfeng);
+        Yi **hupai = getHupai(damanguanFlag, mianzi[count], hudi, preHupai);
+
+        if(hupai == NULL || hupai[0] == NULL) continue;
+        size_t hupaiCount = 0;
+        while(hupai[hupaiCount] != NULL) hupaiCount++;
+
+        uint8_t fu = hudi->fu;
+        uint8_t fanshu = 0, defen = 0, damanguan = 0;
+        Sijia baojia2 = 0; uint8_t defen2 = 0;
+
+        if(hupai[0]->fanshu < 0){
+            // 役満の時
+            for(int i = 0; i < hupaiCount; i++){
+                damanguan += abs(hupai[i]->fanshu);
+                if(hupai[i]->baojia != 0){
+                    baojia2 = hupai[i]->baojia;             // パオ対象
+                    defen2 = 8000 * abs(hupai[i]->fanshu);  // パオ対象の基本点
+                }
+            }
+
+            defen = 8000 * damanguan;   // パオを含む全体の基本点
+        }else{
+            // 役満以外の場合
+            concatYiArray(hupai, postHupai);
+            while(hupai[hupaiCount] != NULL) hupaiCount++;
+
+            for(int i = 0; i < hupaiCount; i++) fanshu += hupai[i]->fanshu; // 翻数
+
+            // 基本点計算
+            if     (fanshu >= 13) defen = 8000; // 役満
+            else if(fanshu >= 11) defen = 6000; // 三倍満
+            else if(fanshu >=  8) defen = 4000; // 倍満
+            else if(fanshu >=  6) defen = 3000; // 跳満
+            else{
+                defen = fu * 4;                                 // 符を4倍
+                for(int i = 0; i < fanshu; i++) defen *= 2;     // 翻数分2倍
+                if(defen >= 2000) defen = 2000;                 // Max2000点(満貫)
+            }
+        }
+
+        int8_t fenpei[4] = {0};    // 収入と負担額 fenpei[Fengpai]
+        
+        // パオがあった場合
+        if(defen2 > 0){
+            if(shoupai->drawnPai->paiSource != Zimo) defen2 /= 2;   // ロン和了の場合は放銃者と折半
+            defen  -= defen2;                                       // 基本点からパオ分を減算
+            defen2 *= juInfo->menfeng == Dong ? 6 : 4;                 // パオ分の負担額
+
+            fenpei[juInfo->menfeng] =  defen2;                      // 和了者の収入を加算
+            fenpei[baojia2]         = -defen2;                      // パオ対象の負担額を減算 
+        }
+
+        if(shoupai->drawnPai->paiSource != Zimo || defen == 0){
+            // ロン和了もしくはパオ1人払いの場合
+            Sijia baojia = defen == 0 ? baojia2 : shoupai->drawnPai->paiSource; // パオ1人払いは放銃者扱い
+
+            //--- 負担額の計算(100点未満切り上げ) ---//
+            defen = ceil(defen * (juInfo->menfeng == Dong ? 6 : 4) / 100) * 100;
+            fenpei[juInfo->menfeng] +=  defen + juInfo->changbang * 300 + juInfo->lizhibang * 1000; // 和了者の収入を加算(供託含む)
+            fenpei[baojia]          += -defen - juInfo->changbang * 300;                            // 放銃者の負担額を減算(供託含む)
+        }else{
+            // ツモ和了の場合  
+            uint8_t zhuangjia = ceil(defen * 2 / 100) * 100;  // 親の負担額
+            uint8_t sanjia    = ceil(defen     / 100) * 100;  // 子の負担額
+
+            if(juInfo->menfeng == Dong){
+                // 親和了のとき
+                defen = zhuangjia * 3;  // 和了打点は 親の負担額 x 3
+                for(int j = 0; j < 4; j++){
+                    if(j == juInfo->menfeng) fenpei[j] = defen + juInfo->changbang * 300 + juInfo->lizhibang * 1000;    // 和了者の収入を加算(供託含む)
+                    else                     fenpei[j] = -zhuangjia - juInfo->changbang * 100;                          // 負担者の負担額を減算(供託含む)
+                }
+            }else{
+                // 子和了のとき
+                defen = zhuangjia + sanjia * 2;  // 和了打点は 親の負担額 + 子の負担額 x 2
+                for(int j = 0; j < 4; j++){
+                    if(j == juInfo->menfeng) fenpei[j] = defen + juInfo->changbang * 300 + juInfo->lizhibang * 1000;    // 和了者の収入を加算(供託含む)
+                    else if(j == Dong)       fenpei[j] = -zhuangjia - juInfo->changbang * 100;                          // 親の負担額を減算(供託含む)
+                    else                     fenpei[j] = -sanjia    - juInfo->changbang * 100;                          // 子の負担額を減算(供託含む)
+                }
+            }
+        }
+
+        // 得られた和了点の最大値を解とする
+        if(defen + defen2 > max->damanguan){
+            max->hupai     = hupai;
+            max->fu        = fu;
+            max->fanshu    = fanshu;
+            max->damanguan = damanguan;
+            max->defen     = defen;
+            memcpy(max->fenpei, fenpei, sizeof(int8_t) * 4);
+        }
+
+        count++;
+    }
+
+    return max;
+}
+
+int main(){
+    // --- 手牌の初期化 --- //
+    Mianzi **fulou = (Mianzi **)malloc(2 * sizeof(Mianzi *));
+    fulou[0] = allocateMemory(2, sizeof(Mianzi), false);
+    fulou[0]->paixing = Kezi;
+    fulou[0]->paizhong = Wanzi;
+    fulou[0]->value = 1;
+    fulou[0]->isFulou = true;
+    fulou[0]->isHulu = false;
+    fulou[0]->index = 0;
+    fulou[0]->source = DuiMian;
+    fulou[1] = NULL;
+
+    Shoupai shoupai = {
+        {{0, 0, 3, 3, 3, 2, 0, 0, 0, 0},  // 萬子
+         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},  // 筒子
+         {0, 0, 0, 0, 0, 0, 0, 0, 0, 0},  // 索子
+         {0, 0, 0, 0, 0, 0, 0, 0}},       // 字牌
+        fulou,
+        NULL
+    };
+
+    Pai hulepai = { Wanzi, 1, DuiMian };
+
+    Hupai hupai = { 0, false, false, false, 0, 0 };
+
+    TeshuDamanguan flag;
+    Mianzi ***mianzi = huleMianzi(&flag, &shoupai, &hulepai);
+    size_t count = 0;
+    while(mianzi[count] != NULL) count++;
+    
+    Hudi **hudi = allocateMemory(count, sizeof(Hudi *), false);
+    Yi ***result = allocateMemory(count, sizeof(Yi **), false);
+
+    for(int i = 0; i < count; i++){
+        hudi[i] = getHudi(mianzi[i], 0, 0);
+        result[i] = getHupai(flag, mianzi[i], hudi[i], getPreHupai(&hupai));
+    }
+
+    // 結果を表示
+    if(result != NULL){
+        for(int i = 0; i < count; i++){
+            uint8_t mianziCount = 0;
+            while(mianzi[i][mianziCount] != NULL) mianziCount++;
+
+            printf("面子 : ");
+            for(int j = 0; j < mianziCount; j++){
+                switch(mianzi[i][j]->paizhong){
+                    case Wanzi:
+                        printf("m");
+                        break; 
+
+                    case Tongzi:
+                        printf("p");
+                        break; 
+
+                    case Suozi:
+                        printf("s");
+                        break; 
+
+                    case Zihpai:
+                        printf("z");
+                        break; 
+                }
+
+                switch(mianzi[i][j]->paixing){
+                    case Shunzi:
+                        printf("%d%d%d", mianzi[i][j]->value, mianzi[i][j]->value + 1, mianzi[i][j]->value + 2);
+                        break; 
+
+                    case Kezi:
+                        printf("%d%d%d", mianzi[i][j]->value, mianzi[i][j]->value, mianzi[i][j]->value);
+                        break; 
+
+                    case Gangzi:
+                        printf("%d%d%d%d", mianzi[i][j]->value, mianzi[i][j]->value, mianzi[i][j]->value, mianzi[i][j]->value);
+                        break; 
+
+                    case Duizi:
+                        printf("%d%d", mianzi[i][j]->value, mianzi[i][j]->value);
+                        break; 
+                }
+                if(mianzi[i][j]->isHulu){
+                    printf("(Agari : %d, %d)", mianzi[i][j]->value + mianzi[i][j]->index, mianzi[i][j]->source);
+                }
+                if(mianzi[i][j]->isFulou){
+                    printf("(fulou : %d, %d)", mianzi[i][j]->value + mianzi[i][j]->index, mianzi[i][j]->source);
+                }
+                if(j != mianziCount - 1) printf(", ");
+                else printf("\n");
+            }
+
+            uint8_t j = 0;
+            while(result[i][j] != NULL){
+                printf("%s, %d\n", result[i][j]->name, (int)result[i][j]->fanshu);
+                j++;
+            }
+            printf("\n");
+        }
+
+        // メモリ解放
+        for (int j = 0; j < count; j++) {
+            free(result[j]);
+        }
+        free(result);
+    }else{
+        puts("nun");
+    }
+
+    return 0;
 }

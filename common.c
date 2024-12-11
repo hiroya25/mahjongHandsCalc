@@ -20,7 +20,7 @@ void *allocateMemory(size_t size, size_t typeSize, bool clearFlag){
 
     if(ptr == NULL){
         fprintf(stderr, "メモリ確保に失敗しました。サイズ: %zu, 型のサイズ: %zu\n", size, typeSize);
-        exit(EXIT_FAILURE);
+        abort();
     }
 
     return ptr;

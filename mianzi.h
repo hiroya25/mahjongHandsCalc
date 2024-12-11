@@ -34,7 +34,7 @@ typedef enum{
 //  プロトタイプ宣言(Prototype declaration)
 //------------------------------------------------
 
-Mianzi ***huleMianzi(uint8_t *flag, Shoupai *shoupai, Pai *hulepai);
+Mianzi ***huleMianzi(TeshuDamanguan *flag, Shoupai *shoupai, Pai *hulepai);
 
 //------------------------------------------------
 #endif

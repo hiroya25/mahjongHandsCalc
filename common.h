@@ -73,10 +73,12 @@ typedef struct{
  * @brief 手牌を表す構造体(入力)
  */
 typedef struct{
-    uint8_t bingpai[4][10]; /*!< 打牌可能な手牌(bingpai[PaiType][number]で表す, number=0は赤ドラ) */
+    uint8_t bingpai[4][10]; /*!< 打牌可能な手牌(bingpai[Paizhong][value]で表す, value=0は赤ドラ) */
     Mianzi **fulou;         /*!< 副露した面子 */
-    Pai *zimo;              /*!< 直前に手牌に来た牌 */
+    bool *fulouHongpai;     /*!< 副露した面子に赤ドラが含まれるかどうか */
+    Pai *drawnPai;          /*!< 直前に手牌に来た牌 */
 } Shoupai;
+
 
 //------------------------------------------------
 //  プロトタイプ宣言(Prototype declaration)
