@@ -12,10 +12,10 @@
  * @param paixing (Paixing) 面子の種類
  * @param paizhong (Paizhong) 数牌の種類
  * @param value (uint8_t) 牌の値
- * @param isFulou (bool) 手牌がフーロウかどうか
- * @param fulouIndex (uint8_t) フーロウのインデックス
- * @param isHulu (bool) フーロウでない面子のインデックス
- * @param huluIndex (uint8_t) 葫芦のインデックス
+ * @param isFulou (bool) 副露を含む面子かどうか
+ * @param isHulu (bool) 和了牌を含む面子かどうか
+ * @param index (uint8_t) value + index番目がその牌
+ * @param source (Sijia) 副露/和了牌の出どころ
  * @return (Mianzi *) Mianzi型のポインタ
  */
 Mianzi *initializeMianzi(Paixing paixing, Paizhong paizhong, uint8_t value, bool isFulou, bool isHulu, uint8_t index, Sijia source){
@@ -95,16 +95,33 @@ void flipMianziArray(Mianzi ***mianzi, size_t size){
     }
 }
 
+/** @brief Mianzi ***型の中身をすべて解放する関数
+ * @param mianzi (Mianzi ***) Mianzi型のポインタの2次元配列
+ */
+void freeAllMianziArray(Mianzi ***mianzi){
+    if(mianzi == NULL) return;
+
+    for(int i = 0; mianzi[i] != NULL; i++){
+        for(int j = 0; mianzi[i][j] != NULL; j++){
+            free(mianzi[i][j]); // *mianzi[i][j]にポインタ変数は存在しないので中身は勝手に解放
+        }
+        free(mianzi[i]);
+    } 
+
+    free(mianzi);
+    mianzi = NULL;
+}
+
 ///@}
 
 ///--- 特殊形 ---//
 
 /** @brief 七対子形 : 和了形(特殊)を求めるプログラム
  * @param shoupai (Shoupai *) 手牌
- * @param hulepai (Pai *) 和了牌
+ * @param shoupai->hulepai (Pai *) 和了牌
  * @return (Mianzi **) 面子の情報の配列(七対子ではなかったときNULL)
  */
-Mianzi **huleMianziQiduizi(Shoupai *shoupai, Pai *hulepai){
+Mianzi **huleMianziQiduizi(Shoupai *shoupai){
     Mianzi **mianzi = allocateMemory(8, sizeof(Mianzi *), true);
     uint8_t count = 0;
 
@@ -116,7 +133,7 @@ Mianzi **huleMianziQiduizi(Shoupai *shoupai, Pai *hulepai){
             // 対子の場合
             else if(shoupai->bingpai[i][j] == 2){
                 // 和了牌と一致するかどうかを確認
-                if(i == hulepai->paizhong && j == hulepai->value) mianzi[count] = initializeMianzi(Duizi, i, j, false, true, hulepai->value - j, hulepai->paiSource);
+                if(i == shoupai->hulepai->paizhong && j == shoupai->hulepai->value) mianzi[count] = initializeMianzi(Duizi, i, j, false, true, shoupai->hulepai->value - j, shoupai->hulepai->paiSource);
                 else mianzi[count] = initializeMianzi(Duizi, i, j, false, false, 0, 0);
                 count++;
             }
@@ -142,10 +159,10 @@ Mianzi **huleMianziQiduizi(Shoupai *shoupai, Pai *hulepai){
 
 /** @brief 国士無双形 : 和了形(特殊)を求めるプログラム
  * @param shoupai (Shoupai *) 手牌
- * @param hulepai (Pai *) 和了牌
+ * @param shoupai->hulepai (Pai *) 和了牌
  * @return (TeshuDamanguan) 国士無双であるかどうか
  */
-TeshuDamanguan huleMianziGuoshi(Shoupai *shoupai, Pai *hulepai){
+TeshuDamanguan huleMianziGuoshi(Shoupai *shoupai){
     if(shoupai->fulou != NULL && shoupai->fulou[0] != NULL) return None;
 
     uint8_t count = 0;
@@ -158,7 +175,7 @@ TeshuDamanguan huleMianziGuoshi(Shoupai *shoupai, Pai *hulepai){
             switch(shoupai->bingpai[i][j]){
                 case 2:
                     // 和了牌だったとき、13面待ち
-                    if(hulepai->paizhong == i && hulepai->value == j) danqi = false;
+                    if(shoupai->hulepai->paizhong == i && shoupai->hulepai->value == j) danqi = false;
                     count++;
                     duizi = true;
                     break;
@@ -178,7 +195,7 @@ TeshuDamanguan huleMianziGuoshi(Shoupai *shoupai, Pai *hulepai){
         switch(shoupai->bingpai[Zihpai][i]){
             case 2:
                 // 和了牌だったとき、13面待ち
-                if(hulepai->paizhong == Zihpai && hulepai->value == i) danqi = false;
+                if(shoupai->hulepai->paizhong == Zihpai && shoupai->hulepai->value == i) danqi = false;
                 count++;
                 duizi = true;
                 break;
@@ -199,12 +216,12 @@ TeshuDamanguan huleMianziGuoshi(Shoupai *shoupai, Pai *hulepai){
 
 /** @brief 九蓮宝燈形 : 和了形(特殊)を求めるプログラム
  * @param shoupai (Shoupai *) 手牌
- * @param hulepai (Pai *) 和了牌
+ * @param shoupai->hulepai (Pai *) 和了牌
  * @return (TeshuDamanguan) 九蓮宝燈であるかどうか
  */
-TeshuDamanguan huleMianziJiulian(Shoupai *shoupai, Pai *hulepai){
+TeshuDamanguan huleMianziJiulian(Shoupai *shoupai){
     // 萬子、筒子、索子以外は九蓮宝燈ではない
-    Paizhong s = hulepai->paizhong;
+    Paizhong s = shoupai->hulepai->paizhong;
     if(s != Wanzi && s != Tongzi && s != Suozi) return None;
 
     for(int i = 1; i <= 9; i++){
@@ -216,7 +233,7 @@ TeshuDamanguan huleMianziJiulian(Shoupai *shoupai, Pai *hulepai){
     }
 
     // 和了牌と同じ牌が2枚もしくは4枚存在するとき、純正九蓮宝燈
-    if(shoupai->bingpai[s][hulepai->value] % 2 == 0) return ChunzhengJiulian;
+    if(shoupai->bingpai[s][shoupai->hulepai->value] % 2 == 0) return ChunzhengJiulian;
     else return Jiulian;
 }
 
@@ -404,6 +421,7 @@ Mianzi ***mianziAll(Shoupai *shoupai){
     if(shoupai->fulou != NULL){
         int i = 0;
         while(allMianzi[i] != NULL){
+            // 副露面子をディープコピー
             appendMianziArray(allMianzi[i], copyMianzi1DArray(shoupai->fulou));
             i++;
         }
@@ -414,10 +432,10 @@ Mianzi ***mianziAll(Shoupai *shoupai){
 
 /** @brief 一般形(4面子1雀頭)の和了形を求める関数
  * @param shoupai (Shoupai *) 手牌
- * @param hulepai (PaiAction *) 和了牌
+ * @param shoupai->hulepai (PaiAction *) 和了牌
  * @return (Mianzi ***) 面子の取り方((mianzi *)[] 型)の配列 (->二次元ポインタ配列[choice][index]、最後はNULL)
  */
-Mianzi ***huleMianziYiban(Shoupai *shoupai, Pai *hulepai){
+Mianzi ***huleMianziYiban(Shoupai *shoupai){
     Mianzi ***huleMianzi = allocateMemory(MAX_MIANZI_COMBINATIONS, sizeof(Mianzi **), true);
 
     for(int i = 0; i < 4; i++){
@@ -430,7 +448,10 @@ Mianzi ***huleMianziYiban(Shoupai *shoupai, Pai *hulepai){
 
             // 雀頭候補以外のshoupaiから面子検索
             Mianzi ***mianziCombinations = mianziAll(shoupai);
-            if(mianziCombinations == NULL) continue;
+            if(mianziCombinations == NULL){
+                shoupai->bingpai[i][j] += 2;
+                continue;
+            }
             size_t combinationCount = 0;
             while(mianziCombinations[combinationCount] != NULL) combinationCount++;
 
@@ -451,10 +472,9 @@ Mianzi ***huleMianziYiban(Shoupai *shoupai, Pai *hulepai){
 
                 // 和了牌のマークをつける
                 for(int l = 0; l < 5; l++){
-                    if(compMianzi[k][l]->paizhong == hulepai->paizhong){
-                        if(compMianzi[k][l]->paixing == Shunzi && (hulepai->value != compMianzi[k][l]->value && hulepai->value != compMianzi[k][l]->value + 1 && hulepai->value != compMianzi[k][l]->value + 2)) continue;
-                        if(compMianzi[k][l]->paixing != Shunzi && hulepai->value != compMianzi[k][l]->value) continue;
-                        if(compMianzi[k][l]->source == Zimo && hulepai->paiSource != Zimo || compMianzi[k][l]->source != Zimo && hulepai->paiSource == Zimo) continue;
+                    if(compMianzi[k][l]->paizhong == shoupai->hulepai->paizhong){
+                        if(compMianzi[k][l]->paixing == Shunzi && (shoupai->hulepai->value != compMianzi[k][l]->value && shoupai->hulepai->value != compMianzi[k][l]->value + 1 && shoupai->hulepai->value != compMianzi[k][l]->value + 2)) continue;
+                        if(compMianzi[k][l]->paixing != Shunzi && shoupai->hulepai->value != compMianzi[k][l]->value) continue;
 
                         // 和了牌が見つかったらcompMianziからコピーをしてhuleMianziに追加
                         bool flag = false;
@@ -473,8 +493,8 @@ Mianzi ***huleMianziYiban(Shoupai *shoupai, Pai *hulepai){
 
                         huleMianzi[count + offset] = copyMianzi1DArray(compMianzi[k]);
                         huleMianzi[count + offset][l]->isHulu = true;
-                        huleMianzi[count + offset][l]->index  = hulepai->value - huleMianzi[count][l]->value;
-                        huleMianzi[count + offset][l]->source = hulepai->paiSource;
+                        huleMianzi[count + offset][l]->index  = shoupai->hulepai->value - huleMianzi[count][l]->value;
+                        huleMianzi[count + offset][l]->source = shoupai->hulepai->paiSource;
                         offset++;
                     }
                 }
@@ -505,19 +525,19 @@ Mianzi ***huleMianziYiban(Shoupai *shoupai, Pai *hulepai){
 /** @brief 和了形を求める関数
  * @param flag (uint8_t *) 特殊形の和了形であるか(0...x, 1...国士無双, 2...九蓮宝燈)
  * @param shoupai (Shoupai *) 手牌
- * @param hulepai (PaiAction *) 和了牌
+ * @param shoupai->hulepai (PaiAction *) 和了牌
  * @return (Mianzi ***) 面子の取り方((mianzi *)[] 型)の配列 (->二次元ポインタ配列[choice][index]、最後はNULL)
  */
-Mianzi ***huleMianzi(TeshuDamanguan *flag, Shoupai *shoupai, Pai *hulepai){
+Mianzi ***huleMianzi(TeshuDamanguan *flag, Shoupai *shoupai){
     // 国士無双, 九蓮宝燈の確認
-    *flag = huleMianziGuoshi(shoupai, hulepai);
+    *flag = huleMianziGuoshi(shoupai, shoupai->hulepai);
     if(*flag != None) return NULL;
 
-    *flag = huleMianziJiulian(shoupai, hulepai);
+    *flag = huleMianziJiulian(shoupai, shoupai->hulepai);
     if(*flag != None) return NULL;
 
-    Mianzi ***mianzi = huleMianziYiban(shoupai, hulepai);
-    Mianzi **mianziQiduizi = huleMianziQiduizi(shoupai, hulepai);
+    Mianzi ***mianzi = huleMianziYiban(shoupai, shoupai->hulepai);
+    Mianzi **mianziQiduizi = huleMianziQiduizi(shoupai, shoupai->hulepai);
     if(mianziQiduizi != NULL){
         size_t count = 0;
         while(mianzi[count] != NULL) count++;
@@ -526,8 +546,6 @@ Mianzi ***huleMianzi(TeshuDamanguan *flag, Shoupai *shoupai, Pai *hulepai){
 
     return mianzi;
 }
-
-
 
 /*
 int main(){
@@ -552,10 +570,10 @@ int main(){
         NULL
     };
 
-    Pai hulepai = { Wanzi, 1, Zimo };
+    Pai shoupai->hulepai = { Wanzi, 1, Zimo };
 
     uint8_t flag;
-    Mianzi ***result = huleMianzi(&flag, &shoupai, &hulepai);
+    Mianzi ***result = huleMianzi(&flag, &shoupai, &shoupai->hulepai);
 
     switch(flag){
         case 1:

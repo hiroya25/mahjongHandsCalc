@@ -63,8 +63,8 @@ typedef struct{
     Fengpai zhuangfeng;     /*!< 場風 */
     Fengpai menfeng;        /*!< 和了者の自風 */
     Hupai *hupai;           /*!< 特殊役情報 */
-    uint8_t baopai[5];      /*!< ドラ (牌の種類 : val/10, 牌の番号 : val%10) */
-    uint8_t fubaopai[5];    /*!< 裏ドラ (牌の種類 : val/10, 牌の番号 : val%10) */
+    uint8_t baopai[5];      /*!< ドラ表示牌 (牌の種類 : val/10, 牌の番号 : val%10) */
+    uint8_t fubaopai[5];    /*!< 裏ドラ表示牌 (牌の種類 : val/10, 牌の番号 : val%10) */
     uint8_t changbang;      /*!< 積み棒の数 */
     uint8_t lizhibang;      /*!< 供託立直棒の数 */
 } JuInfo;
@@ -83,7 +83,7 @@ typedef struct{
     uint8_t nKezi;          /*!< 刻子の数(槓子含む) */
     uint8_t nAnkezi;        /*!< 暗刻子の数(暗槓子を含む) */
     uint8_t nGangzi;        /*!< 槓子の数 */
-    uint8_t nZipai;         /*!< 字牌面子の数(雀頭含む) */
+    uint8_t nZiphai;         /*!< 字牌面子の数(雀頭含む) */
     uint8_t nYaojiu;        /*!< 幺九牌入り面子の数(雀頭を含む) */
     bool danqi;             /*!< 単騎待ち */
     bool pinghu;            /*!< 平和形 */
@@ -100,13 +100,15 @@ typedef struct{
     uint8_t fu;         /*!< 符 */
     uint8_t fanshu;     /*!< 翻数 */
     uint8_t damanguan;  /*!< 役満複合数 */
-    uint8_t defen;      /*!< (供託を含めない)和了点 */
-    int8_t fenpei[4];   /*!< (供託を含めた)点数の移動 */
+    uint16_t defen;     /*!< (供託を含めない)和了点 */
+    int32_t fenpei[4];  /*!< (供託を含めた)点数の移動 */
 } Hule;
 
 //------------------------------------------------
 //  プロトタイプ宣言(Prototype declaration)
 //------------------------------------------------
+
+Hule *hule(Shoupai *shoupai, JuInfo *juInfo);
 
 //------------------------------------------------
 #endif

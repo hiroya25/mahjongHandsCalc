@@ -25,9 +25,9 @@ typedef enum{
  */
 typedef enum{
     Zimo,       /*!< 自家 */
-    Shangjia,   /*!< 上家 */
+    Xiagia,     /*!< 下家 */
     DuiMian,    /*!< 対面 */
-    Xiagia      /*!< 下家 */
+    Shangjia    /*!< 上家 */
 } Sijia;
 
 /**
@@ -76,7 +76,7 @@ typedef struct{
     uint8_t bingpai[4][10]; /*!< 打牌可能な手牌(bingpai[Paizhong][value]で表す, value=0は赤ドラ) */
     Mianzi **fulou;         /*!< 副露した面子 */
     bool *fulouHongpai;     /*!< 副露した面子に赤ドラが含まれるかどうか */
-    Pai *drawnPai;          /*!< 直前に手牌に来た牌 */
+    Pai *hulepai;           /*!< 上がり牌になりえる牌(直前に副露した牌 or 直前にツモした牌) */
 } Shoupai;
 
 

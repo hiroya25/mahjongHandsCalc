@@ -34,7 +34,8 @@ typedef enum{
 //  プロトタイプ宣言(Prototype declaration)
 //------------------------------------------------
 
-Mianzi ***huleMianzi(TeshuDamanguan *flag, Shoupai *shoupai, Pai *hulepai);
+Mianzi ***huleMianzi(TeshuDamanguan *flag, Shoupai *shoupai);
+void freeAllMianziArray(Mianzi ***mianzi);
 
 //------------------------------------------------
 #endif
